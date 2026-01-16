@@ -13,7 +13,7 @@ function AdminLogin({ onLogin }) {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, {
+      const response = await api.post('/auth/login', {
         username,
         password,
       });
