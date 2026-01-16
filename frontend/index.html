@@ -25,29 +25,36 @@
     <button id="pdfBtn" style="display:none">Download PDF</button>
   </div>
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbym61F8Flgyq6PwXV6TqcNdhbbdwVc3C4pwUPTjTRtdARxAs-uweRLWqPcGeC1wUx_KCg/exec'; // Google Apps Script Web App URL
+    // Google Apps Script Web App URL (update if redeployed)
+    const API_URL = 'https://script.google.com/macros/s/AKfycbym61F8Flgyq6PwXV6TqcNdhbbdwVc3C4pwUPTjTRtdARxAs-uweRLWqPcGeC1wUx_KCg/exec';
 
     document.getElementById('searchBtn').onclick = async () => {
       const fullName = document.getElementById('fullName').value.trim();
       if (!fullName) return showMsg('Please enter full name');
       showMsg('Searching...');
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({action: 'search', full_name: fullName})
-      });
-      const data = await res.json();
-      if (!data.found) return showMsg('Member not found');
-      if (data.registered === 'YES') return showMsg('Already registered');
-      // Register
-      showMsg('Registering...');
-      const regRes = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({action: 'register', full_name: fullName})
-      });
-      const regData = await regRes.json();
-      if (!regData.success) return showMsg(regData.message || 'Registration failed');
-      showMsg('Registration successful!');
-      showCoupon(regData.full_name, regData.registered_at, regData.member_id);
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({action: 'search', full_name: fullName})
+        });
+        if (!res.ok) throw new Error('Network error: ' + res.status);
+        const data = await res.json();
+        if (!data.found) return showMsg('Member not found');
+        if (data.registered === 'YES') return showMsg('Already registered');
+        // Register
+        showMsg('Registering...');
+        const regRes = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({action: 'register', full_name: fullName})
+        });
+        if (!regRes.ok) throw new Error('Network error: ' + regRes.status);
+        const regData = await regRes.json();
+        if (!regData.success) return showMsg(regData.message || 'Registration failed');
+        showMsg('Registration successful!');
+        showCoupon(regData.full_name, regData.registered_at, regData.member_id);
+      } catch (err) {
+        showMsg('Error: ' + err.message + '\nPlease check your internet connection or contact admin.');
+      }
     };
 
     function showMsg(msg) {
