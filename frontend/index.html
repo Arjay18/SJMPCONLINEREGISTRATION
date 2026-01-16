@@ -17,7 +17,7 @@
 <body>
   <div class="container">
     <h1>Member Registration</h1>
-    <input type="text" id="fullName" placeholder="Full Name" required>
+    <input type="text" id="memberId" placeholder="Member ID" required>
     <button id="searchBtn">Search & Register</button>
     <div class="msg" id="msg"></div>
     <div class="coupon" id="coupon" style="display:none"></div>
@@ -29,13 +29,13 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbxOfWPk6frEp6l0XaPiR-q8NvUnDG3hHHzyhkoENa41C4fADnLgvOTBR5jxZ2nowvSa8Q/exec';
 
     document.getElementById('searchBtn').onclick = async () => {
-      const fullName = document.getElementById('fullName').value.trim();
-      if (!fullName) return showMsg('Please enter full name');
+      const memberId = document.getElementById('memberId').value.trim();
+      if (!memberId) return showMsg('Please enter Member ID');
       showMsg('Searching...');
       try {
         const res = await fetch(API_URL, {
           method: 'POST',
-          body: JSON.stringify({action: 'search', full_name: fullName})
+          body: JSON.stringify({action: 'search', member_id: memberId})
         });
         if (!res.ok) throw new Error('Network error: ' + res.status);
         const data = await res.json();
@@ -45,7 +45,7 @@
         showMsg('Registering...');
         const regRes = await fetch(API_URL, {
           method: 'POST',
-          body: JSON.stringify({action: 'register', full_name: fullName})
+          body: JSON.stringify({action: 'register', member_id: memberId})
         });
         if (!regRes.ok) throw new Error('Network error: ' + regRes.status);
         const regData = await regRes.json();
