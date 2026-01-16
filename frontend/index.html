@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>On-site Registration</title>
+  <style>
+    body { font-family: sans-serif; background: #f8f8f8; margin: 0; padding: 0; }
+    .container { max-width: 400px; margin: 2em auto; background: #fff; padding: 2em; border-radius: 10px; box-shadow: 0 2px 8px #ccc; }
+    h1 { font-size: 1.5em; text-align: center; }
+    input, button { width: 100%; font-size: 1.2em; margin: 1em 0; padding: 0.7em; border-radius: 5px; border: 1px solid #ccc; }
+    button { background: #007bff; color: #fff; border: none; font-weight: bold; }
+    .msg { text-align: center; font-size: 1.1em; margin: 1em 0; }
+    .coupon { font-family: monospace; background: #eee; padding: 1em; border-radius: 5px; margin: 1em 0; }
+    @media (max-width: 500px) { .container { padding: 1em; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Member Registration</h1>
+    <input type="text" id="fullName" placeholder="Full Name" required>
+    <button id="searchBtn">Search & Register</button>
+    <div class="msg" id="msg"></div>
+    <div class="coupon" id="coupon" style="display:none"></div>
+    <button id="printBtn" style="display:none">Print Coupon</button>
+    <button id="pdfBtn" style="display:none">Download PDF</button>
+  </div>
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzlYK0UD_FWo181l2ML6-U7vXGSDzfyf9g2QIfeQgXi7QSWYiOkQjdFkI5iOM3MrY0eUA/exec'; // Google Apps Script Web App URL
+
+    document.getElementById('searchBtn').onclick = async () => {
+      const fullName = document.getElementById('fullName').value.trim();
+      if (!fullName) return showMsg('Please enter full name');
+      showMsg('Searching...');
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action: 'search', full_name: fullName})
+      });
+      const data = await res.json();
+      if (!data.found) return showMsg('Member not found');
+      if (data.registered === 'YES') return showMsg('Already registered');
+      // Register
+      showMsg('Registering...');
+      const regRes = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action: 'register', full_name: fullName})
+      });
+      const regData = await regRes.json();
+      if (!regData.success) return showMsg(regData.message || 'Registration failed');
+      showMsg('Registration successful!');
+      showCoupon(regData.full_name, regData.registered_at, regData.member_id);
+    };
+
+    function showMsg(msg) {
+      document.getElementById('msg').textContent = msg;
+      document.getElementById('coupon').style.display = 'none';
+      document.getElementById('printBtn').style.display = 'none';
+      document.getElementById('pdfBtn').style.display = 'none';
+    }
+
+    function showCoupon(name, date, id) {
+      const dt = new Date(date);
+      const dtStr = dt.toLocaleString();
+      const couponText = `
+--------------------------------
+  MEMBER REGISTRATION COUPON
+--------------------------------
+  Name: ${name}
+  Date: ${dtStr}
+  Coupon No: ${id}
+--------------------------------
+  THANK YOU
+--------------------------------
+      `;
+      document.getElementById('coupon').textContent = couponText;
+      document.getElementById('coupon').style.display = '';
+      document.getElementById('printBtn').style.display = '';
+      document.getElementById('pdfBtn').style.display = '';
+      // Try auto-print
+      printCouponESC(name, dtStr, id);
+    }
+
+    // ESC/POS Bluetooth Print (Web Bluetooth API)
+    async function printCouponESC(name, date, id) {
+      if (!navigator.bluetooth) return;
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'MTP' }],
+          optionalServices: [0x1101]
+        });
+        const server = await device.gatt.connect();
+        // Find the right service/characteristic for your printer
+        // This is a placeholder; you may need to adjust for your printer
+        const service = await server.getPrimaryService(0x1101);
+        const characteristic = await service.getCharacteristic(0x2A56);
+        const encoder = new TextEncoder();
+        const escpos = [
+          '\x1B\x40', // Initialize
+          '\x1B\x61\x01', // Center
+          'MEMBER REGISTRATION COUPON\n',
+          '\x1B\x61\x00', // Left
+          `Name: ${name}\nDate: ${date}\nCoupon No: ${id}\n`,
+          '\nTHANK YOU\n\n',
+          '\x1D\x56\x00' // Full cut (if supported)
+        ].join('');
+        await characteristic.writeValue(encoder.encode(escpos));
+        showMsg('Printed via Bluetooth!');
+      } catch (e) {
+        showMsg('Bluetooth print failed. Use PDF.');
+      }
+    }
+
+    // Fallback: Download PDF
+    document.getElementById('pdfBtn').onclick = () => {
+      const coupon = document.getElementById('coupon').textContent;
+      const win = window.open('', '', 'width=300,height=400');
+      win.document.write('<pre style="font-size:16px">' + coupon + '</pre>');
+      win.print();
+    };
+
+    // Manual print button
+    document.getElementById('printBtn').onclick = () => {
+      printCouponESC(
+        document.getElementById('fullName').value,
+        new Date().toLocaleString(),
+        'N/A'
+      );
+    };
+  </script>
+</body>
+</html>
